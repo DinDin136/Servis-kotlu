@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="cs" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Servis Kotlů PRO</title>
+    
+    <!-- PWA Standalone Manifest pro spuštění z plochy bez adresního řádku -->
+    <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Servis%20Kotl%C5%AF%20PRO%22%2C%22short_name%22%3A%22ServisKotl%C5%AF%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230284c7%22%2C%22icons%22%3A%5B%5D%7D">
+    <meta name="theme-color" content="#0284c7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Servis Kotlů">
+
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
+        
+        /* Custom checkbox styling for easy one-handed thumb tapping */
+        .task-checkbox:checked + div {
+            background-color: rgba(14, 165, 233, 0.15);
+            border-color: rgba(56, 189, 248, 0.6);
+            color: #f8fafc;
+        }
+        .task-checkbox:checked + div .check-icon {
+            background-color: #0284c7;
+            border-color: #0284c7;
+            color: white;
+        }
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea { position: absolute; left: 0; top: 0; width: 100%; background: white !important; color: black !important; padding: 20px; }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col bg-slate-900 text-slate-100 pb-20 select-none">
+
+    <!-- HORNÍ HLAVIČKA -->
+    <header class="bg-slate-800/95 backdrop-blur border-b border-slate-700/80 sticky top-0 z-30 px-4 py-3 flex items-center justify-between shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-amber-500 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-sky-900/30">
+                <i class="fa-solid fa-fire-flame-curved"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-base leading-tight text-white flex items-center gap-1.5">
+                    Servis Kotlů <span class="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30 font-semibold">PRO</span>
+                </h1>
+                <p class="text-[11px] text-slate-400 flex items-center gap-1" id="header-status">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> Offline databáze aktivní
+                </p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <button onclick="openServiceModal()" class="px-3 py-2 bg-amber-600 hover:bg-amber-500 active:scale-95 text-white rounded-xl transition text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-amber-900/20">
+                <i class="fa-solid fa-plus"></i> <span>Nový servis</span>
+            </button>
+            <button onclick="exportJSON()" title="Rychlá záloha JSON" class="p-2 text-slate-300 hover:text-white bg-slate-700/60 hover:bg-slate-700 rounded-xl transition text-xs flex items-center gap-1">
+                <i class="fa-solid fa-cloud-arrow-down text-sky-400 text-sm"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- HLAVNÍ OBSAH -->
+    <main class="flex-1 overflow-y-auto max-w-4xl w-full mx-auto p-3.5 sm:p-5 space-y-5">
+
+        <!-- KARTA 1: PŘEHLED (OVERVIEW) -->
+        <section id="tab-overview" class="tab-content space-y-4">
+            <!-- Statistiky / Semafor -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div onclick="switchTab('notifications')" class="cursor-pointer bg-rose-950/35 border border-rose-800/50 hover:border-rose-600 p-3.5 rounded-2xl shadow-sm transition active:scale-98">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-rose-300 font-medium">Po termínu</span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                    </div>
+                    <span class="text-2xl font-bold text-rose-400 mt-1 block" id="stat-overdue-count">0</span>
+                    <span class="text-[10px] text-rose-400/80">Nutno kontaktovat</span>
+                </div>
+
+                <div onclick="switchTab('notifications')" class="cursor-pointer bg-amber-950/35 border border-amber-800/50 hover:border-amber-600 p-3.5 rounded-2xl shadow-sm transition active:scale-98">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-amber-300 font-medium">Do 30 dní</span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    </div>
+                    <span class="text-2xl font-bold text-amber-400 mt-1 block" id="stat-due30-count">0</span>
+                    <span class="text-[10px] text-amber-400/80">Blíží se termín</span>
+                </div>
+
+                <div onclick="switchTab('customers')" class="cursor-pointer bg-slate-800/80 border border-slate-700/70 hover:border-slate-600 p-3.5 rounded-2xl shadow-sm transition active:scale-98">
+                    <span class="text-xs text-slate-400 block font-medium">Zákazníků</span>
+                    <span class="text-2xl font-bold text-white mt-1 block" id="stat-cust-count">0</span>
+                    <span class="text-[10px] text-slate-400">V evidenci</span>
+                </div>
+
+                <div onclick="switchTab('services')" class="cursor-pointer bg-slate-800/80 border border-slate-700/70 hover:border-slate-600 p-3.5 rounded-2xl shadow-sm transition active:scale-98">
+                    <span class="text-xs text-slate-400 block font-medium">Protokolů</span>
+                    <span class="text-2xl font-bold text-sky-400 mt-1 block" id="stat-serv-count">0</span>
+                    <span class="text-[10px] text-sky-400/80">Celkem zapsáno</span>
+                </div>
+            </div>
+
+            <!-- Rychlé akce -->
+            <div class="bg-slate-800/70 border border-slate-700/70 p-4 rounded-2xl space-y-3">
+                <h3 class="text-xs uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                    <i class="fa-solid fa-bolt text-amber-400"></i> Rychlé akce v terénu
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    <button onclick="openServiceModal()" class="bg-amber-600 hover:bg-amber-500 active:scale-95 text-white p-3 rounded-xl font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition">
+                        <i class="fa-solid fa-file-circle-plus text-base"></i> Zapsat protokol
+                    </button>
+                    <button onclick="openCustomerModal()" class="bg-sky-600 hover:bg-sky-500 active:scale-95 text-white p-3 rounded-xl font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition">
+                        <i class="fa-solid fa-user-plus text-base"></i> Nový zákazník
+                    </button>
+                    <button onclick="exportCSV()" class="col-span-2 sm:col-span-1 bg-slate-700 hover:bg-slate-600 active:scale-95 text-slate-200 p-3 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition">
+                        <i class="fa-solid fa-file-excel text-emerald-400 text-base"></i> Export do Excelu
+                    </button>
+                </div>
+            </div>
+
+            <!-- Urgentní upozornění na přehledu -->
+            <div id="overview-urgent-box" class="bg-slate-800/70 border border-slate-700/70 p-4 rounded-2xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs uppercase font-bold text-rose-400 tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Nejbližší / Prošlé servisy
+                    </h3>
+                    <button onclick="switchTab('notifications')" class="text-xs text-sky-400 hover:underline">Zobrazit vše →</button>
+                </div>
+                <div id="overview-urgent-list" class="space-y-2"></div>
+            </div>
+
+            <!-- Poslední servisní zásahy -->
+            <div class="bg-slate-800/70 border border-slate-700/70 p-4 rounded-2xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs uppercase font-bold text-slate-400 tracking-wider">Poslední zapsané protokoly</h3>
+                    <button onclick="switchTab('services')" class="text-xs text-sky-400 hover:underline">Historie →</button>
+                </div>
+                <div id="overview-recent-list" class="space-y-2"></div>
+            </div>
+        </section>
+
+        <!-- KARTA 2: NOTIFIKACE & TERMÍNY (RED / ORANGE / GREEN) -->
+        <section id="tab-notifications" class="tab-content hidden space-y-4">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-bell text-amber-400"></i> Hlídání termínů servisů
+                    </h2>
+                    <p class="text-xs text-slate-400">Červená = po termínu | Oranžová = do měsíce (30 dní) | Zelená = v pořádku</p>
+                </div>
+                <!-- Filtr semaforu -->
+                <div class="flex gap-1.5 bg-slate-800 p-1 rounded-xl border border-slate-700 self-start">
+                    <button onclick="filterNotifications('all')" id="notif-filter-all" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-sky-600 text-white">Vše</button>
+                    <button onclick="filterNotifications('overdue')" id="notif-filter-overdue" class="px-2.5 py-1 rounded-lg text-xs font-medium text-rose-400 hover:bg-slate-700">🔴 Po termínu</button>
+                    <button onclick="filterNotifications('due30')" id="notif-filter-due30" class="px-2.5 py-1 rounded-lg text-xs font-medium text-amber-400 hover:bg-slate-700">🟠 Do měsíce</button>
+                </div>
+            </div>
+
+            <!-- ČERVENÁ SEKCE: PO TERMÍNU -->
+            <div id="sec-overdue" class="space-y-2.5">
+                <div class="flex items-center justify-between bg-rose-950/40 border border-rose-800/50 px-3 py-2 rounded-xl">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase text-rose-400">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+                        <span>Po termínu (Prošlé servisy)</span>
+                    </div>
+                    <span id="badge-overdue" class="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300">0</span>
+                </div>
+                <div id="list-overdue" class="space-y-2.5"></div>
+            </div>
+
+            <!-- ORANŽOVÁ SEKCE: DO MĚSÍCE (30 DNÍ) -->
+            <div id="sec-due30" class="space-y-2.5 pt-2">
+                <div class="flex items-center justify-between bg-amber-950/40 border border-amber-800/50 px-3 py-2 rounded-xl">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase text-amber-400">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span>Blížící se servis (Do měsíce / 30 dní)</span>
+                    </div>
+                    <span id="badge-due30" class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">0</span>
+                </div>
+                <div id="list-due30" class="space-y-2.5"></div>
+            </div>
+
+            <!-- ZELENÁ SEKCE: V POŘÁDKU -->
+            <div id="sec-ok" class="space-y-2.5 pt-2">
+                <div class="flex items-center justify-between bg-emerald-950/30 border border-emerald-800/40 px-3 py-2 rounded-xl">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase text-emerald-400">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <span>V pořádku (Více než 30 dní)</span>
+                    </div>
+                    <span id="badge-ok" class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">0</span>
+                </div>
+                <div id="list-ok" class="space-y-2.5"></div>
+            </div>
+        </section>
+
+        <!-- KARTA 3: ZÁKAZNÍCI & KOTLE -->
+        <section id="tab-customers" class="tab-content hidden space-y-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-bold text-white">Databáze zákazníků</h2>
+                    <p class="text-xs text-slate-400">Karty zákazníků, instalované kotle a historie</p>
+                </div>
+                <button onclick="openCustomerModal()" class="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3.5 py-2.5 rounded-xl font-semibold shadow flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-plus"></i> Nový zákazník
+                </button>
+            </div>
+
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400"></i>
+                <input type="text" id="searchCustomer" oninput="renderCustomers()" placeholder="Hledat jméno, adresu, telefon, kotel, S/N..." class="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+            </div>
+
+            <div id="customerList" class="space-y-3"></div>
+        </section>
+
+        <!-- KARTA 4: SERVISNÍ PROTOKOLY -->
+        <section id="tab-services" class="tab-content hidden space-y-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-bold text-white">Servisní protokoly</h2>
+                    <p class="text-xs text-slate-400">Archiv provedených prací, měření spalin a fotek</p>
+                </div>
+                <button onclick="openServiceModal()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3.5 py-2.5 rounded-xl font-semibold shadow flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-circle-plus"></i> Zapsat servis
+                </button>
+            </div>
+
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400"></i>
+                <input type="text" id="searchService" oninput="renderServices()" placeholder="Hledat protokol podle zákazníka, poznámky nebo úkonu..." class="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+            </div>
+
+            <div id="serviceList" class="space-y-3"></div>
+        </section>
+
+        <!-- KARTA 5: NASTAVENÍ & SPRÁVA ÚKONŮ -->
+        <section id="tab-settings" class="tab-content hidden space-y-5">
+            <div>
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-sky-400"></i> Nastavení a seznam prací
+                </h2>
+                <p class="text-xs text-slate-400">Přizpůsobte si úkony v servisním protokolu a zálohujte data na Google Disk</p>
+            </div>
+
+            <!-- SPRÁVA SEZNAMU PRACÍ (CHECKLIST) -->
+            <div class="bg-slate-800/80 border border-slate-700/80 p-4 rounded-2xl space-y-4 shadow-sm">
+                <div class="flex justify-between items-center border-b border-slate-700/80 pb-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-emerald-400"></i> Seznam prací v protokolu (Checklist)
+                        </h3>
+                        <p class="text-[11px] text-slate-400">Tyto položky se zobrazují jako zaškrtávací políčka u každého servisu</p>
+                    </div>
+                    <button onclick="resetDefaultTasks()" class="text-[11px] px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition" title="Vrátit výchozí seznam prací">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Výchozí
+                    </button>
+                </div>
+
+                <!-- Přidat novou práci -->
+                <div class="flex gap-2">
+                    <input type="text" id="newSettingTaskInput" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTaskFromSettings();}" placeholder="Napište novou práci / úkon (např. Výměna těsnění hořáku)..." class="flex-1 p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-sky-500 outline-none">
+                    <button onclick="addCustomTaskFromSettings()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 shrink-0 shadow">
+                        <i class="fa-solid fa-plus"></i> Přidat práci
+                    </button>
+                </div>
+
+                <!-- Seznam všech úkonů -->
+                <div id="settingsTaskList" class="space-y-1.5 max-h-96 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- ÚDAJE O TECHNIKOVI (PRO TISK PROTOKOLU) -->
+            <div class="bg-slate-800/80 border border-slate-700/80 p-4 rounded-2xl space-y-3 shadow-sm">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-id-card text-sky-400"></i> Hlavička technika (na protokoly a SMS)
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Vaše jméno / Firma</label>
+                        <input type="text" id="tech-name" oninput="saveTechProfile()" placeholder="např. Jan Novák - Servis plynových kotlů" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Váš telefon / IČO</label>
+                        <input type="text" id="tech-phone" oninput="saveTechProfile()" placeholder="např. +420 777 123 456, IČO: 12345678" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ZÁLOHA A EXPORT (GOOGLE DISK / EXCEL) -->
+            <div class="bg-slate-800/80 border border-slate-700/80 p-4 rounded-2xl space-y-3 shadow-sm">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-cloud text-amber-400"></i> Zálohování a Export (Google Disk & Excel)
+                </h3>
+                <p class="text-xs text-slate-400">Stáhněte si kompletní zálohu (včetně zákazníků, protokolů, fotek a vlastních prací) a uložte ji na Google Disk.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                    <button onclick="exportJSON()" class="bg-sky-600 hover:bg-sky-500 text-white p-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow">
+                        <i class="fa-solid fa-cloud-arrow-down text-base"></i> Stáhnout zálohu (.JSON)
+                    </button>
+                    <label class="bg-amber-600 hover:bg-amber-500 text-white p-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow cursor-pointer text-center">
+                        <i class="fa-solid fa-cloud-arrow-up text-base"></i> Obnovit ze zálohy (.JSON)
+                        <input type="file" accept=".json" onchange="importJSON(event)" class="hidden">
+                    </label>
+                    <button onclick="exportCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow">
+                        <i class="fa-solid fa-file-csv text-base"></i> Export pro Excel (.CSV)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- SPODNÍ MOBILNÍ NAVIGACE (5 KARET) -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-800/95 backdrop-blur border-t border-slate-700/80 shadow-2xl z-30 flex justify-around py-1.5 px-1">
+        <button onclick="switchTab('overview')" id="nav-overview" class="flex flex-col items-center gap-0.5 w-1/5 py-1 text-sky-400 font-semibold">
+            <i class="fa-solid fa-chart-pie text-base"></i>
+            <span class="text-[10px]">Přehled</span>
+        </button>
+        <button onclick="switchTab('notifications')" id="nav-notifications" class="flex flex-col items-center gap-0.5 w-1/5 py-1 text-slate-400 relative">
+            <i class="fa-solid fa-bell text-base"></i>
+            <span class="text-[10px]">Termíny</span>
+            <span id="nav-badge" class="hidden absolute top-0.5 right-3 sm:right-6 min-w-[16px] h-4 px-1 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">0</span>
+        </button>
+        <button onclick="switchTab('customers')" id="nav-customers" class="flex flex-col items-center gap-0.5 w-1/5 py-1 text-slate-400">
+            <i class="fa-solid fa-users text-base"></i>
+            <span class="text-[10px]">Zákazníci</span>
+        </button>
+        <button onclick="switchTab('services')" id="nav-services" class="flex flex-col items-center gap-0.5 w-1/5 py-1 text-slate-400">
+            <i class="fa-solid fa-clipboard-check text-base"></i>
+            <span class="text-[10px]">Protokoly</span>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="flex flex-col items-center gap-0.5 w-1/5 py-1 text-slate-400">
+            <i class="fa-solid fa-gear text-base"></i>
+            <span class="text-[10px]">Nastavení</span>
+        </button>
+    </nav>
+
+    <!-- MODAL: ZÁKAZNÍK -->
+    <div id="customerModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-3">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md p-5 space-y-3.5 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 id="customerModalTitle" class="text-base font-bold text-white">Nový zákazník</h3>
+                <button onclick="closeCustomerModal()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <input type="hidden" id="cust-id">
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Jméno a příjmení / Firma *</label>
+                <input type="text" id="cust-name" placeholder="např. Ing. Petr Svoboda" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-2 focus:ring-sky-500 outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Telefon *</label>
+                    <input type="tel" id="cust-phone" placeholder="+420 777 ..." class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">E-mail (nepovinné)</label>
+                    <input type="email" id="cust-email" placeholder="email@seznam.cz" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Adresa instalace *</label>
+                <input type="text" id="cust-address" placeholder="Ulice č.p., Město" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-2 focus:ring-sky-500 outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Výrobce a model kotle *</label>
+                    <input type="text" id="cust-boiler" placeholder="Vaillant ecoTEC plus..." class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Sériové číslo (S/N)</label>
+                    <input type="text" id="cust-serial" placeholder="2120..." class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Rok instalace / výroby</label>
+                    <input type="number" id="cust-year" placeholder="2021" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Výkon / Poznámka ke kotli</label>
+                    <input type="text" id="cust-note" placeholder="24 kW + zásobník" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+            </div>
+            <div class="flex gap-2.5 pt-2">
+                <button onclick="closeCustomerModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl text-xs font-semibold">Zrušit</button>
+                <button onclick="saveCustomer()" class="flex-1 bg-sky-600 hover:bg-sky-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow">Uložit zákazníka</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ZÁPIS / ÚPRAVA SERVISNÍHO PROTOKOLU -->
+    <div id="serviceModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm hidden z-50 flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-2xl p-4 sm:p-5 space-y-4 shadow-2xl max-h-[95vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3 sticky top-0 bg-slate-800 z-10">
+                <h3 id="serviceModalTitle" class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-list text-amber-400"></i> Zápis servisního protokolu
+                </h3>
+                <button onclick="closeServiceModal()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <input type="hidden" id="serv-id">
+
+            <!-- Zákazník a datum -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div class="sm:col-span-3">
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Zákazník a kotel *</label>
+                    <select id="serv-customer" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white focus:ring-2 focus:ring-sky-500 outline-none"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Datum servisu *</label>
+                    <input type="date" id="serv-date" onchange="updateNextDateFromMonths()" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Interval (měsíců)</label>
+                    <input type="number" id="serv-months" value="12" oninput="updateNextDateFromMonths()" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-amber-300 mb-1">Příští servis dne *</label>
+                    <input type="date" id="serv-nextdate" class="w-full p-2.5 bg-slate-900 border border-amber-500/40 rounded-xl text-xs text-amber-300 font-semibold">
+                </div>
+            </div>
+
+            <!-- KONTROLNÍ SEZNAM PRACÍ (CHECKLIST - KAŽDÝ KROK ZVLÁŠŤ) -->
+            <div class="bg-slate-900/70 p-3.5 rounded-2xl border border-slate-700/80 space-y-3">
+                <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-2">
+                    <div>
+                        <span class="text-xs uppercase font-bold text-sky-400 block flex items-center gap-1.5">
+                            <i class="fa-solid fa-list-check"></i> Provedené práce a kontroly (Checklist)
+                        </span>
+                        <span id="checklist-counter" class="text-[11px] text-slate-400">Zaškrtněte každý provedený úkon zvlášť</span>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <button type="button" onclick="toggleAllProtocolTasks(true)" class="text-[11px] px-2.5 py-1 rounded-lg bg-sky-600/20 text-sky-300 border border-sky-500/30 hover:bg-sky-600/30 font-medium">
+                            <i class="fa-solid fa-check-double mr-1"></i>Vybrat vše
+                        </button>
+                        <button type="button" onclick="toggleAllProtocolTasks(false)" class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:text-white font-medium">
+                            Zrušit výběr
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Kontejner pro jednotlivé checkboxy -->
+                <div id="protocolChecklistContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-72 overflow-y-auto pr-1">
+                    <!-- Naplní se dynamicky ze seznamu úkonů -->
+                </div>
+
+                <!-- Rychlé přidání další práce přímo z protokolu -->
+                <div class="pt-2 border-t border-slate-800 flex gap-2">
+                    <input type="text" id="inlineNewTaskInput" onkeydown="if(event.key==='Enter'){event.preventDefault();addInlineTaskInModal();}" placeholder="+ Přidat další práci do seznamu (uloží se i pro příště)..." class="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:ring-1 focus:ring-sky-500 outline-none">
+                    <button type="button" onclick="addInlineTaskInModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shrink-0 flex items-center gap-1">
+                        <i class="fa-solid fa-plus"></i> Přidat
+                    </button>
+                </div>
+            </div>
+
+            <!-- NAMĚŘENÉ HODNOTY SPALOVÁNÍ A TLAKŮ -->
+            <div class="bg-slate-900/70 p-3.5 rounded-2xl border border-slate-700/80 space-y-2.5">
+                <span class="text-xs uppercase font-bold text-emerald-400 block flex items-center gap-1.5">
+                    <i class="fa-solid fa-gauge-high"></i> Naměřené hodnoty spalování a soustavy
+                </span>
+                <div class="grid grid-cols-3 sm:grid-cols-3 gap-2 text-xs">
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-0.5">CO₂ (%)</label>
+                        <input type="number" step="0.1" id="serv-co2" placeholder="např. 9.2" class="w-full p-2 bg-slate-800 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-0.5">CO (ppm)</label>
+                        <input type="number" id="serv-co" placeholder="např. 15" class="w-full p-2 bg-slate-800 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-0.5">O₂ (%)</label>
+                        <input type="number" step="0.1" id="serv-o2" placeholder="např. 4.5" class="w-full p-2 bg-slate-800 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-0.5">Tepl. spalin (°C)</label>
+                        <input type="number" step="0.1" id="serv-temp" placeholder="např. 62" class="w-full p-2 bg-slate-800 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-0.5">Účinnost (%)</label>
+                        <input type="number" step="0.1" id="serv-efficiency" placeholder="např. 98.4" class="w-full p-2 bg-slate-800 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-0.5">Tah komínu (Pa)</label>
+                        <input type="number" step="0.1" id="serv-draft" placeholder="např. 12" class="w-full p-2 bg-slate-800 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-0.5">Tlak ÚT (bar)</label>
+                        <input type="number" step="0.1" id="serv-pressure" placeholder="např. 1.5" class="w-full p-2 bg-slate-800 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-0.5">Expanzka ÚT/TUV (bar)</label>
+                        <input type="text" id="serv-exp" placeholder="1.0 / 2.5" class="w-full p-2 bg-slate-800 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-0.5">Ionizační proud (µA)</label>
+                        <input type="number" step="0.1" id="serv-ion" placeholder="např. 6.5" class="w-full p-2 bg-slate-800 border border-slate-700 rounded-xl text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- VYMĚNĚNÉ DÍLY A POZNÁMKA -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Vyměněné náhradní díly / Materiál</label>
+                    <textarea id="serv-parts" rows="2" placeholder="např. Těsnění hořáku, zapalovací elektroda..." class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Poznámka technika / Doporučení</label>
+                    <textarea id="serv-notes" rows="2" placeholder="Spotřebič schopný bezpečného provozu..." class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"></textarea>
+                </div>
+            </div>
+
+            <!-- FOTOGRAFIE ZE SERVISU -->
+            <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/60 space-y-2">
+                <div class="flex justify-between items-center">
+                    <label class="block text-xs font-medium text-slate-300">
+                        <i class="fa-solid fa-camera text-sky-400 mr-1"></i> Fotodokumentace (automatická komprese pro offline paměť)
+                    </label>
+                </div>
+                <input type="file" id="serv-photos" accept="image/*" multiple onchange="handlePhotoPreview(event)" class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-sky-600/20 file:text-sky-300 hover:file:bg-sky-600/30">
+                <div id="serv-photo-preview" class="flex gap-2 overflow-x-auto pt-1"></div>
+            </div>
+
+            <div class="flex gap-2.5 pt-2 sticky bottom-0 bg-slate-800 pb-1">
+                <button type="button" onclick="closeServiceModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 py-3 rounded-xl text-xs font-semibold">Zrušit</button>
+                <button type="button" onclick="saveService()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-3 rounded-xl text-xs font-bold shadow-lg">Uložit servisní protokol</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: DETAIL PROTOKOLU (ZOBRAZENÍ VŠECH PROVEDENÝCH KROKŮ + TISK) -->
+    <div id="protocolDetailModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm hidden z-50 flex items-center justify-center p-3">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-xl p-5 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-file-contract text-sky-400"></i> Detail servisního protokolu
+                </h3>
+                <button onclick="closeProtocolDetailModal()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="protocolDetailContent" class="space-y-4 text-xs"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: POTVRZENÍ SMAZÁNÍ (MÍSTO CONFIRM) -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl text-center">
+            <div class="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h4 id="confirmModalText" class="text-sm font-semibold text-white">Opravdu chcete položku smazat?</h4>
+            <div class="flex gap-2.5">
+                <button onclick="closeConfirmModal()" class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-xl text-xs font-semibold text-slate-200">Zrušit</button>
+                <button id="confirmModalBtn" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 rounded-xl text-xs font-semibold text-white">Ano, smazat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PROHLÍŽEČ FOTEK -->
+    <div id="photoViewerModal" onclick="this.classList.add('hidden')" class="fixed inset-0 bg-black/95 hidden z-50 flex flex-col items-center justify-center p-4">
+        <img id="photoViewerImg" src="" class="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl">
+        <p class="text-xs text-slate-400 mt-3">Klepnutím kamkoliv zavřete náhled</p>
+    </div>
+
+    <!-- TOAST NOTIFIKACE (MÍSTO ALERT) -->
+    <div id="toastBox" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 opacity-0 translate-y-[-10px]">
+        <div id="toastMessage" class="bg-slate-800 border border-sky-500/50 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2"></div>
+    </div>
+
+    <!-- TISKOVÁ OBLAST -->
+    <div id="printArea" class="hidden"></div>
+
+    <!-- JAVASCRIPT LOGIKA -->
+    <script>
+        // VÝCHOZÍ PODROBNÝ SEZNAM PRACÍ DLE POŽADAVKU TECHNIKA
+        const DEFAULT_CHECKLIST_TASKS = [
+            "Vyčištění výměníku topné vody",
+            "Vyčištění hořáku",
+            "Vyčištění elektrod",
+            "Vyčištění spalovací komory",
+            "Vyčištění směšovacího ventilu",
+            "Vyčištění sifonu kondenzátu",
+            "Kontrola elektrod",
+            "Kontrola funkce manostatu spalin",
+            "Kontrola termostatu spalin",
+            "Kontrola havarijního termostatu ÚT",
+            "Kontrola a promazání ventilátoru",
+            "Kontrola a promazání třícestného ventilu",
+            "Seřízení maximálního výkonu",
+            "Seřízení minimálního výkonu",
+            "Seřízení zapalovacího výkonu",
+            "Kontrola pojistného ventilu ÚT",
+            "Kontrola pojistného ventilu TUV",
+            "Kontrola plynotěsnosti",
+            "Přezkoušení chodu spotřebiče a ovládacích prvků",
+            "Kontrola a dofoukání expanzní nádoby ÚT",
+            "Kontrola a dofoukání expanzní nádoby TUV",
+            "Kontrola čistoty filtru (magnetického / sítka)",
+            "Přeměření hodnot NTC čidel"
+        ];
+
+        let db;
+        let customers = [];
+        let services = [];
+        let checklistTasks = [];
+        let currentModalPhotos = [];
+        let currentNotifFilter = 'all';
+
+        // Načtení seznamu prací a profilu technika z localStorage
+        function loadSettingsData() {
+            const savedTasks = localStorage.getItem('boiler_checklist_tasks_v2');
+            if (savedTasks) {
+                try {
+                    checklistTasks = JSON.parse(savedTasks);
+                } catch (e) {
+                    checklistTasks = [...DEFAULT_CHECKLIST_TASKS];
+                }
+            } else {
+                checklistTasks = [...DEFAULT_CHECKLIST_TASKS];
+                saveChecklistTasks();
+            }
+
+            const techProfile = JSON.parse(localStorage.getItem('boiler_tech_profile') || '{}');
+            if (document.getElementById('tech-name')) document.getElementById('tech-name').value = techProfile.name || '';
+            if (document.getElementById('tech-phone')) document.getElementById('tech-phone').value = techProfile.phone || '';
+        }
+
+        function saveChecklistTasks() {
+            localStorage.setItem('boiler_checklist_tasks_v2', JSON.stringify(checklistTasks));
+            renderSettingsTasks();
+        }
+
+        function saveTechProfile() {
+            const profile = {
+                name: document.getElementById('tech-name').value.trim(),
+                phone: document.getElementById('tech-phone').value.trim()
+            };
+            localStorage.setItem('boiler_tech_profile', JSON.stringify(profile));
+        }
+
+        // Toast notifikace
+        function showToast(msg, type = 'info') {
+            const box = document.getElementById('toastBox');
+            const el = document.getElementById('toastMessage');
+            const icon = type === 'success' ? '<i class="fa-solid fa-circle-check text-emerald-400"></i>' :
+                         type === 'error' ? '<i class="fa-solid fa-circle-exclamation text-rose-400"></i>' :
+                         '<i class="fa-solid fa-circle-info text-sky-400"></i>';
+            el.innerHTML = `${icon} <span>${msg}</span>`;
+            box.classList.remove('opacity-0', 'translate-y-[-10px]');
+            box.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                box.classList.add('opacity-0', 'translate-y-[-10px]');
+                box.classList.remove('opacity-100', 'translate-y-0');
+            }, 2600);
+        }
+
+        // Vlastní potvrzovací dialog
+        function askConfirm(text, onConfirm) {
+            document.getElementById('confirmModalText').textContent = text;
+            const modal = document.getElementById('confirmModal');
+            modal.classList.remove('hidden');
+            const btn = document.getElementById('confirmModalBtn');
+            btn.onclick = () => {
+                closeConfirmModal();
+                onConfirm();
+            };
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+        }
+
+        // Inicializace IndexedDB (kompatibilní s předchozí verzí)
+        const request = indexedDB.open("BoilerServicePRO_DB", 1);
+
+        request.onerror = (e) => console.error("Chyba IndexedDB:", e);
+        request.onsuccess = (e) => {
+            db = e.target.result;
+            loadSettingsData();
+            loadAllData();
+        };
+        request.onupgradeneeded = (e) => {
+            let db = e.target.result;
+            if (!db.objectStoreNames.contains("customers")) db.createObjectStore("customers", { keyPath: "id", autoIncrement: true });
+            if (!db.objectStoreNames.contains("services")) db.createObjectStore("services", { keyPath: "id", autoIncrement: true });
+        };
+
+        function loadAllData() {
+            let cTx = db.transaction(["customers"], "readonly");
+            let cReq = cTx.objectStore("customers").getAll();
+            cReq.onsuccess = () => {
+                customers = cReq.result || [];
+                let sTx = db.transaction(["services"], "readonly");
+                let sReq = sTx.objectStore("services").getAll();
+                sReq.onsuccess = () => {
+                    services = sReq.result || [];
+                    renderNotifications();
+                    renderOverview();
+                    renderCustomers();
+                    renderServices();
+                    renderSettingsTasks();
+                };
+            };
+        }
+
+        // Přepínání 5 záložek
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+
+            ['overview', 'notifications', 'customers', 'services', 'settings'].forEach(t => {
+                const nav = document.getElementById(`nav-${t}`);
+                if (t === tab) {
+                    nav.className = "flex flex-col items-center gap-0.5 w-1/5 py-1 text-sky-400 font-semibold relative";
+                } else {
+                    nav.className = "flex flex-col items-center gap-0.5 w-1/5 py-1 text-slate-400 relative";
+                }
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // KARTA 1: PŘEHLED
+        function renderOverview() {
+            document.getElementById('stat-cust-count').textContent = customers.length;
+            document.getElementById('stat-serv-count').textContent = services.length;
+
+            const recentContainer = document.getElementById('overview-recent-list');
+            recentContainer.innerHTML = '';
+
+            const sorted = [...services].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 4);
+            if (sorted.length === 0) {
+                recentContainer.innerHTML = `<p class="text-xs text-slate-500 py-2">Zatím žádné zapsané servisy. Klepněte na "Zapsat protokol".</p>`;
+                return;
+            }
+
+            sorted.forEach(s => {
+                const c = customers.find(item => item.id === s.customerId) || { name: 'Neznámý zákazník', boiler: '' };
+                const taskCount = s.tasks ? s.tasks.length : 0;
+                recentContainer.innerHTML += `
+                    <div onclick="openProtocolDetail(${s.id})" class="cursor-pointer bg-slate-900/50 hover:bg-slate-900/80 p-3 rounded-xl border border-slate-700/60 flex justify-between items-center text-xs transition">
+                        <div>
+                            <strong class="text-white block text-sm">${escapeHtml(c.name)}</strong>
+                            <span class="text-slate-400">${formatDateCZ(s.date)} • ${escapeHtml(c.boiler || 'Kotel')} • <span class="text-sky-400">${taskCount} úkonů</span></span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-emerald-400 font-semibold block">${s.co2 ? 'CO₂: ' + s.co2 + '%' : ''}</span>
+                            <span class="text-[10px] text-slate-400">Detail →</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // KARTA 2: NOTIFIKACE A SEMAFOR TERMÍNŮ
+        function filterNotifications(mode) {
+            currentNotifFilter = mode;
+            ['all', 'overdue', 'due30'].forEach(m => {
+                const btn = document.getElementById(`notif-filter-${m}`);
+                if (m === mode) btn.className = "px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-600 text-white";
+                else btn.className = "px-2.5 py-1 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-700";
+            });
+            document.getElementById('sec-overdue').classList.toggle('hidden', mode === 'due30');
+            document.getElementById('sec-due30').classList.toggle('hidden', mode === 'overdue');
+            document.getElementById('sec-ok').classList.toggle('hidden', mode !== 'all');
+        }
+
+        function renderNotifications() {
+            const listOverdue = document.getElementById('list-overdue');
+            const listDue30 = document.getElementById('list-due30');
+            const listOk = document.getElementById('list-ok');
+            const urgentOverview = document.getElementById('overview-urgent-list');
+
+            listOverdue.innerHTML = '';
+            listDue30.innerHTML = '';
+            listOk.innerHTML = '';
+            urgentOverview.innerHTML = '';
+
+            let countOverdue = 0;
+            let countDue30 = 0;
+            let countOk = 0;
+            let urgentItems = [];
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            customers.forEach(c => {
+                const custServices = services.filter(s => s.customerId === c.id).sort((a,b) => new Date(b.date) - new Date(a.date));
+                if (custServices.length > 0 && custServices[0].nextDate) {
+                    const lastServ = custServices[0];
+                    const nextDate = new Date(lastServ.nextDate);
+                    nextDate.setHours(0,0,0,0);
+                    const diffDays = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
+
+                    const itemData = { c, lastServ, nextDate, diffDays };
+                    if (diffDays <= 30) urgentItems.push(itemData);
+
+                    const smsText = encodeURIComponent(`Dobrý den, připomínám blížící se termín pravidelného ročního servisu Vašeho plynového kotle (${c.boiler || ''}). Prosím o kontaktování pro domluvu termínu.`);
+                    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address || '')}`;
+
+                    const cardHtml = `
+                        <div class="p-3.5 rounded-2xl border flex flex-col justify-between gap-2.5 shadow-sm ${
+                            diffDays < 0 ? 'bg-rose-950/25 border-rose-700/60' : 
+                            diffDays <= 30 ? 'bg-amber-950/25 border-amber-700/60' : 'bg-slate-800/70 border-slate-700/70'
+                        }">
+                            <div class="flex justify-between items-start gap-2">
+                                <div>
+                                    <strong class="text-white text-sm sm:text-base block">${escapeHtml(c.name)}</strong>
+                                    <span class="text-xs text-slate-300 block"><i class="fa-solid fa-location-dot text-rose-400 mr-1"></i>${escapeHtml(c.address || 'Bez adresy')}</span>
+                                    <span class="text-xs text-slate-400 block mt-0.5"><i class="fa-solid fa-fire text-amber-400 mr-1"></i>${escapeHtml(c.boiler || 'Kotel neuveden')} ${c.serial ? `(S/N: ${escapeHtml(c.serial)})` : ''}</span>
+                                </div>
+                                <span class="text-xs px-2.5 py-1 rounded-full font-bold shrink-0 ${
+                                    diffDays < 0 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
+                                    diffDays <= 30 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                }">
+                                    ${diffDays < 0 ? `🔴 Po termínu ${Math.abs(diffDays)} dní` : diffDays === 0 ? `🟠 Dnes!` : diffDays <= 30 ? `🟠 Za ${diffDays} dní` : `🟢 Za ${diffDays} dní`}
+                                </span>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-700/50 text-xs">
+                                <span class="text-slate-400">Termín: <strong class="text-white">${formatDateCZ(lastServ.nextDate)}</strong></span>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <a href="tel:${c.phone}" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold flex items-center gap-1">
+                                        <i class="fa-solid fa-phone"></i> Volat
+                                    </a>
+                                    <a href="sms:${c.phone}?body=${smsText}" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-semibold flex items-center gap-1">
+                                        <i class="fa-solid fa-comment-sms"></i> SMS
+                                    </a>
+                                    <a href="${mapUrl}" target="_blank" class="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-medium flex items-center gap-1">
+                                        <i class="fa-solid fa-diamond-turn-right text-sky-400"></i> Mapa
+                                    </a>
+                                    <button onclick="openServiceModal(null, ${c.id})" class="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-semibold flex items-center gap-1">
+                                        <i class="fa-solid fa-plus"></i> Udělat servis
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    if (diffDays < 0) {
+                        listOverdue.innerHTML += cardHtml;
+                        countOverdue++;
+                    } else if (diffDays <= 30) {
+                        listDue30.innerHTML += cardHtml;
+                        countDue30++;
+                    } else {
+                        listOk.innerHTML += cardHtml;
+                        countOk++;
+                    }
+                }
+            });
+
+            if (countOverdue === 0) listOverdue.innerHTML = `<p class="text-xs text-slate-500 py-2 px-1 italic">Žádné servisy po termínu.</p>`;
+            if (countDue30 === 0) listDue30.innerHTML = `<p class="text-xs text-slate-500 py-2 px-1 italic">Žádné servisy v následujících 30 dnech.</p>`;
+            if (countOk === 0) listOk.innerHTML = `<p class="text-xs text-slate-500 py-2 px-1 italic">Žádné další naplánované servisy.</p>`;
+
+            document.getElementById('stat-overdue-count').textContent = countOverdue;
+            document.getElementById('stat-due30-count').textContent = countDue30;
+            document.getElementById('badge-overdue').textContent = countOverdue;
+            document.getElementById('badge-due30').textContent = countDue30;
+            document.getElementById('badge-ok').textContent = countOk;
+
+            // Urgentní box na přehledu
+            urgentItems.sort((a,b) => a.diffDays - b.diffDays);
+            if (urgentItems.length === 0) {
+                urgentOverview.innerHTML = `<p class="text-xs text-emerald-400 py-1"><i class="fa-solid fa-circle-check mr-1"></i>Všechny servisy jsou v pořádku (žádný není po termínu ani do 30 dnů).</p>`;
+            } else {
+                urgentItems.slice(0, 4).forEach(item => {
+                    const isOver = item.diffDays < 0;
+                    urgentOverview.innerHTML += `
+                        <div class="p-2.5 rounded-xl border flex justify-between items-center text-xs ${isOver ? 'bg-rose-950/30 border-rose-800/60' : 'bg-amber-950/30 border-amber-800/60'}">
+                            <div>
+                                <strong class="text-white block">${escapeHtml(item.c.name)}</strong>
+                                <span class="text-slate-400">${escapeHtml(item.c.boiler || '')} • ${formatDateCZ(item.lastServ.nextDate)}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded-full font-bold text-[10px] ${isOver ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'}">
+                                    ${isOver ? `Prošlo o ${Math.abs(item.diffDays)} d.` : `Za ${item.diffDays} d.`}
+                                </span>
+                                <a href="tel:${item.c.phone}" class="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center"><i class="fa-solid fa-phone text-[10px]"></i></a>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            const totalAlerts = countOverdue + countDue30;
+            const badge = document.getElementById('nav-badge');
+            if (totalAlerts > 0) {
+                badge.textContent = totalAlerts;
+                badge.classList.remove('hidden');
+                badge.className = `absolute top-0.5 right-3 sm:right-6 min-w-[16px] h-4 px-1 ${countOverdue > 0 ? 'bg-rose-500' : 'bg-amber-500'} text-white text-[9px] font-bold rounded-full flex items-center justify-center`;
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // KARTA 3: ZÁKAZNÍCI
+        function renderCustomers() {
+            const list = document.getElementById('customerList');
+            const search = (document.getElementById('searchCustomer').value || '').toLowerCase();
+            list.innerHTML = '';
+
+            const filtered = customers.filter(c => 
+                (c.name && c.name.toLowerCase().includes(search)) || 
+                (c.address && c.address.toLowerCase().includes(search)) || 
+                (c.phone && c.phone.toLowerCase().includes(search)) ||
+                (c.boiler && c.boiler.toLowerCase().includes(search)) ||
+                (c.serial && c.serial.toLowerCase().includes(search))
+            );
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<p class="text-xs text-slate-500 text-center py-8">Žádní zákazníci nenalezeni.</p>`;
+                return;
+            }
+
+            filtered.forEach(c => {
+                const custServices = services.filter(s => s.customerId === c.id).sort((a,b) => new Date(b.date) - new Date(a.date));
+                const lastServ = custServices[0];
+                const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address || '')}`;
+
+                list.innerHTML += `
+                    <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/70 space-y-3 shadow-sm">
+                        <div class="flex justify-between items-start gap-2">
+                            <div>
+                                <h3 class="font-bold text-white text-base">${escapeHtml(c.name)}</h3>
+                                <p class="text-xs text-slate-300 mt-0.5"><i class="fa-solid fa-location-dot text-rose-400 mr-1.5"></i>${escapeHtml(c.address || 'Adresa neuvedena')}</p>
+                                ${c.phone ? `<p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-phone text-emerald-400 mr-1.5"></i>${escapeHtml(c.phone)}</p>` : ''}
+                            </div>
+                            <div class="flex gap-1.5 shrink-0">
+                                <a href="tel:${c.phone}" title="Zavolat" class="w-8 h-8 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-xl flex items-center justify-center"><i class="fa-solid fa-phone text-xs"></i></a>
+                                <a href="${mapUrl}" target="_blank" title="Navigovat" class="w-8 h-8 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 rounded-xl flex items-center justify-center"><i class="fa-solid fa-location-arrow text-xs"></i></a>
+                                <button onclick="openCustomerModal(${c.id})" title="Upravit" class="w-8 h-8 bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 rounded-xl flex items-center justify-center"><i class="fa-solid fa-pen text-xs"></i></button>
+                                <button onclick="deleteCustomer(${c.id})" title="Smazat" class="w-8 h-8 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 rounded-xl flex items-center justify-center"><i class="fa-solid fa-trash text-xs"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/60 p-2.5 rounded-xl text-xs text-slate-300 grid grid-cols-2 sm:grid-cols-3 gap-2 border border-slate-700/40">
+                            <div><span class="text-slate-500 block text-[10px]">Kotel</span><strong>${escapeHtml(c.boiler || 'Neuveden')}</strong></div>
+                            <div><span class="text-slate-500 block text-[10px]">Sériové č. (S/N)</span><strong>${escapeHtml(c.serial || '-')}</strong></div>
+                            <div class="col-span-2 sm:col-span-1"><span class="text-slate-500 block text-[10px]">Rok / Pozn.</span><strong>${escapeHtml(c.year || '-')} ${c.note ? '• ' + escapeHtml(c.note) : ''}</strong></div>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-1 text-xs">
+                            <span class="text-slate-400">
+                                ${lastServ ? `Poslední servis: <strong class="text-slate-200">${formatDateCZ(lastServ.date)}</strong> (Příští: <strong class="text-amber-400">${formatDateCZ(lastServ.nextDate)}</strong>)` : 'Zatím žádný zaznamenaný servis'}
+                            </span>
+                            <button onclick="openServiceModal(null, ${c.id})" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded-xl font-semibold flex items-center gap-1">
+                                <i class="fa-solid fa-plus"></i> Nový servis
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function openCustomerModal(id = null) {
+            document.getElementById('customerModal').classList.remove('hidden');
+            if (id) {
+                const c = customers.find(item => item.id === id);
+                if (c) {
+                    document.getElementById('customerModalTitle').textContent = "Upravit zákazníka";
+                    document.getElementById('cust-id').value = c.id;
+                    document.getElementById('cust-name').value = c.name || '';
+                    document.getElementById('cust-phone').value = c.phone || '';
+                    document.getElementById('cust-email').value = c.email || '';
+                    document.getElementById('cust-address').value = c.address || '';
+                    document.getElementById('cust-boiler').value = c.boiler || '';
+                    document.getElementById('cust-serial').value = c.serial || '';
+                    document.getElementById('cust-year').value = c.year || '';
+                    document.getElementById('cust-note').value = c.note || '';
+                }
+            } else {
+                document.getElementById('customerModalTitle').textContent = "Nový zákazník";
+                document.getElementById('cust-id').value = "";
+                document.getElementById('cust-name').value = "";
+                document.getElementById('cust-phone').value = "";
+                document.getElementById('cust-email').value = "";
+                document.getElementById('cust-address').value = "";
+                document.getElementById('cust-boiler').value = "";
+                document.getElementById('cust-serial').value = "";
+                document.getElementById('cust-year').value = "";
+                document.getElementById('cust-note').value = "";
+            }
+        }
+
+        function closeCustomerModal() {
+            document.getElementById('customerModal').classList.add('hidden');
+        }
+
+        function saveCustomer() {
+            const id = document.getElementById('cust-id').value;
+            const customerObj = {
+                name: document.getElementById('cust-name').value.trim(),
+                phone: document.getElementById('cust-phone').value.trim(),
+                email: document.getElementById('cust-email').value.trim(),
+                address: document.getElementById('cust-address').value.trim(),
+                boiler: document.getElementById('cust-boiler').value.trim(),
+                serial: document.getElementById('cust-serial').value.trim(),
+                year: document.getElementById('cust-year').value.trim(),
+                note: document.getElementById('cust-note').value.trim()
+            };
+
+            if (!customerObj.name || !customerObj.phone) {
+                showToast("Vyplňte prosím jméno a telefon zákazníka.", "error");
+                return;
+            }
+
+            const tx = db.transaction(["customers"], "readwrite");
+            const store = tx.objectStore("customers");
+            if (id) {
+                customerObj.id = Number(id);
+                store.put(customerObj);
+            } else {
+                store.add(customerObj);
+            }
+
+            tx.oncomplete = () => {
+                closeCustomerModal();
+                showToast("Zákazník byl uložen.", "success");
+                loadAllData();
+            };
+        }
+
+        function deleteCustomer(id) {
+            askConfirm("Opravdu chcete smazat tohoto zákazníka?", () => {
+                const tx = db.transaction(["customers"], "readwrite");
+                tx.objectStore("customers").delete(id);
+                tx.oncomplete = () => {
+                    showToast("Zákazník byl smazán.", "info");
+                    loadAllData();
+                };
+            });
+        }
+
+        // KARTA 4: SERVISNÍ PROTOKOLY A CHECKLIST
+        function renderProtocolChecklist(selectedTasks = []) {
+            const container = document.getElementById('protocolChecklistContainer');
+            container.innerHTML = '';
+
+            // Zajistíme, že pokud protokol obsahoval starší vlastní úkon, zobrazí se také
+            const allTasksToRender = [...new Set([...checklistTasks, ...selectedTasks])];
+
+            allTasksToRender.forEach((taskName, index) => {
+                const isChecked = selectedTasks.includes(taskName);
+                container.innerHTML += `
+                    <label class="cursor-pointer block select-none">
+                        <input type="checkbox" class="task-checkbox hidden" value="${escapeHtml(taskName)}" ${isChecked ? 'checked' : ''} onchange="updateChecklistCounter()">
+                        <div class="p-2.5 rounded-xl border border-slate-700/80 bg-slate-800/70 hover:bg-slate-800 text-slate-300 flex items-center gap-2.5 transition">
+                            <span class="check-icon w-5 h-5 rounded-lg border border-slate-600 flex items-center justify-center text-[11px] shrink-0 transition">
+                                <i class="fa-solid fa-check"></i>
+                            </span>
+                            <span class="text-xs font-medium leading-snug">${escapeHtml(taskName)}</span>
+                        </div>
+                    </label>
+                `;
+            });
+            updateChecklistCounter();
+        }
+
+        function updateChecklistCounter() {
+            const total = document.querySelectorAll('.task-checkbox').length;
+            const checked = document.querySelectorAll('.task-checkbox:checked').length;
+            const counterEl = document.getElementById('checklist-counter');
+            if (counterEl) {
+                counterEl.innerHTML = `Zaškrtnuto <strong class="text-sky-400">${checked}</strong> z ${total} prací`;
+            }
+        }
+
+        function toggleAllProtocolTasks(state) {
+            document.querySelectorAll('.task-checkbox').forEach(cb => cb.checked = state);
+            updateChecklistCounter();
+        }
+
+        // Přidání nové práce přímo v modalu protokolu
+        function addInlineTaskInModal() {
+            const input = document.getElementById('inlineNewTaskInput');
+            const val = input.value.trim();
+            if (!val) return;
+
+            if (!checklistTasks.includes(val)) {
+                checklistTasks.push(val);
+                saveChecklistTasks();
+            }
+
+            // Zachováme aktuálně zaškrtnuté a přidáme novou jako zaškrtnutou
+            const currentlyChecked = Array.from(document.querySelectorAll('.task-checkbox:checked')).map(cb => cb.value);
+            if (!currentlyChecked.includes(val)) currentlyChecked.push(val);
+
+            renderProtocolChecklist(currentlyChecked);
+            input.value = '';
+            showToast("Práce přidána a zaškrtnuta.", "success");
+        }
+
+        function updateNextDateFromMonths() {
+            const dateVal = document.getElementById('serv-date').value;
+            const months = parseInt(document.getElementById('serv-months').value) || 12;
+            if (dateVal) {
+                const d = new Date(dateVal);
+                d.setMonth(d.getMonth() + months);
+                document.getElementById('serv-nextdate').value = d.toISOString().split('T')[0];
+            }
+        }
+
+        function openServiceModal(serviceId = null, preselectCustomerId = null) {
+            if (customers.length === 0) {
+                showToast("Nejprve přidejte alespoň jednoho zákazníka.", "error");
+                openCustomerModal();
+                return;
+            }
+
+            const select = document.getElementById('serv-customer');
+            select.innerHTML = '';
+            customers.forEach(c => {
+                select.innerHTML += `<option value="${c.id}">${escapeHtml(c.name)} — ${escapeHtml(c.boiler || 'Kotel')} (${escapeHtml(c.address || '')})</option>`;
+            });
+
+            currentModalPhotos = [];
+            document.getElementById('serv-photo-preview').innerHTML = '';
+            document.getElementById('serv-photos').value = '';
+
+            if (serviceId) {
+                const s = services.find(item => item.id === serviceId);
+                if (s) {
+                    document.getElementById('serviceModalTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-sky-400"></i> Upravit servisní protokol`;
+                    document.getElementById('serv-id').value = s.id;
+                    select.value = s.customerId;
+                    document.getElementById('serv-date').value = s.date || '';
+                    document.getElementById('serv-nextdate').value = s.nextDate || '';
+                    document.getElementById('serv-co').value = s.co || '';
+                    document.getElementById('serv-co2').value = s.co2 || '';
+                    document.getElementById('serv-o2').value = s.o2 || '';
+                    document.getElementById('serv-pressure').value = s.pressure || '';
+                    document.getElementById('serv-exp').value = s.exp || '';
+                    document.getElementById('serv-efficiency').value = s.efficiency || '';
+                    document.getElementById('serv-temp').value = s.temp || '';
+                    document.getElementById('serv-draft').value = s.draft || '';
+                    document.getElementById('serv-ion').value = s.ion || '';
+                    document.getElementById('serv-parts').value = s.parts || '';
+                    document.getElementById('serv-notes').value = s.notes || '';
+                    currentModalPhotos = Array.isArray(s.photos) ? [...s.photos] : [];
+                    renderPhotoPreviews();
+                    renderProtocolChecklist(s.tasks || []);
+                }
+            } else {
+                document.getElementById('serviceModalTitle').innerHTML = `<i class="fa-solid fa-clipboard-list text-amber-400"></i> Zápis servisního protokolu`;
+                document.getElementById('serv-id').value = '';
+                if (preselectCustomerId) select.value = preselectCustomerId;
+                document.getElementById('serv-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('serv-months').value = 12;
+                updateNextDateFromMonths();
+
+                document.getElementById('serv-co').value = '';
+                document.getElementById('serv-co2').value = '';
+                document.getElementById('serv-o2').value = '';
+                document.getElementById('serv-pressure').value = '';
+                document.getElementById('serv-exp').value = '';
+                document.getElementById('serv-efficiency').value = '';
+                document.getElementById('serv-temp').value = '';
+                document.getElementById('serv-draft').value = '';
+                document.getElementById('serv-ion').value = '';
+                document.getElementById('serv-parts').value = '';
+                document.getElementById('serv-notes').value = '';
+                renderProtocolChecklist([]);
+            }
+
+            document.getElementById('serviceModal').classList.remove('hidden');
+        }
+
+        function closeServiceModal() {
+            document.getElementById('serviceModal').classList.add('hidden');
+        }
+
+        // Komprese fotek pomocí Canvasu pro úsporu místa v telefonu
+        function handlePhotoPreview(event) {
+            const files = Array.from(event.target.files);
+            if (!files.length) return;
+
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const maxDim = 1200;
+                        let w = img.width;
+                        let h = img.height;
+                        if (w > maxDim || h > maxDim) {
+                            if (w > h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+                            else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+                        }
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.78);
+                        currentModalPhotos.push(compressedDataUrl);
+                        renderPhotoPreviews();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderPhotoPreviews() {
+            const container = document.getElementById('serv-photo-preview');
+            container.innerHTML = '';
+            currentModalPhotos.forEach((p, idx) => {
+                container.innerHTML += `
+                    <div class="relative shrink-0">
+                        <img src="${p}" onclick="openPhotoViewer('${p}')" class="w-16 h-16 object-cover rounded-xl border border-slate-600 cursor-pointer">
+                        <button type="button" onclick="removeModalPhoto(${idx})" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] flex items-center justify-center shadow">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function removeModalPhoto(idx) {
+            currentModalPhotos.splice(idx, 1);
+            renderPhotoPreviews();
+        }
+
+        function openPhotoViewer(src) {
+            document.getElementById('photoViewerImg').src = src;
+            document.getElementById('photoViewerModal').classList.remove('hidden');
+        }
+
+        function saveService() {
+            const id = document.getElementById('serv-id').value;
+            const custId = Number(document.getElementById('serv-customer').value);
+            if (!custId) {
+                showToast("Vyberte zákazníka.", "error");
+                return;
+            }
+
+            const checkedTasks = Array.from(document.querySelectorAll('.task-checkbox:checked')).map(cb => cb.value);
+            const uncheckedTasks = Array.from(document.querySelectorAll('.task-checkbox:not(:checked)')).map(cb => cb.value);
+
+            const serviceObj = {
+                customerId: custId,
+                date: document.getElementById('serv-date').value,
+                nextDate: document.getElementById('serv-nextdate').value,
+                co: document.getElementById('serv-co').value.trim(),
+                co2: document.getElementById('serv-co2').value.trim(),
+                o2: document.getElementById('serv-o2').value.trim(),
+                pressure: document.getElementById('serv-pressure').value.trim(),
+                exp: document.getElementById('serv-exp').value.trim(),
+                efficiency: document.getElementById('serv-efficiency').value.trim(),
+                temp: document.getElementById('serv-temp').value.trim(),
+                draft: document.getElementById('serv-draft').value.trim(),
+                ion: document.getElementById('serv-ion').value.trim(),
+                tasks: checkedTasks,
+                uncheckedTasks: uncheckedTasks,
+                parts: document.getElementById('serv-parts').value.trim(),
+                notes: document.getElementById('serv-notes').value.trim(),
+                photos: currentModalPhotos
+            };
+
+            const tx = db.transaction(["services"], "readwrite");
+            const store = tx.objectStore("services");
+            if (id) {
+                serviceObj.id = Number(id);
+                store.put(serviceObj);
+            } else {
+                store.add(serviceObj);
+            }
+
+            tx.oncomplete = () => {
+                closeServiceModal();
+                showToast("Servisní protokol byl uložen.", "success");
+                loadAllData();
+            };
+        }
+
+        function renderServices() {
+            const list = document.getElementById('serviceList');
+            const search = (document.getElementById('searchService')?.value || '').toLowerCase();
+            list.innerHTML = '';
+
+            const sorted = [...services].sort((a,b) => new Date(b.date) - new Date(a.date));
+            const filtered = sorted.filter(s => {
+                const c = customers.find(item => item.id === s.customerId) || {};
+                const matchName = (c.name || '').toLowerCase().includes(search) || (c.address || '').toLowerCase().includes(search);
+                const matchNotes = (s.notes || '').toLowerCase().includes(search) || (s.parts || '').toLowerCase().includes(search);
+                const matchTasks = (s.tasks || []).some(t => t.toLowerCase().includes(search));
+                return !search || matchName || matchNotes || matchTasks;
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<p class="text-xs text-slate-500 text-center py-8">Žádné servisní protokoly nenalezeny.</p>`;
+                return;
+            }
+
+            filtered.forEach(s => {
+                const c = customers.find(item => item.id === s.customerId) || { name: 'Neznámý zákazník', address: '', boiler: '' };
+                const doneCount = s.tasks ? s.tasks.length : 0;
+
+                let photosHtml = '';
+                if (s.photos && s.photos.length > 0) {
+                    photosHtml = `<div class="flex gap-1.5 mt-2 overflow-x-auto pb-1">`;
+                    s.photos.forEach(p => {
+                        photosHtml += `<img src="${p}" onclick="openPhotoViewer('${p}')" class="w-12 h-12 object-cover rounded-lg border border-slate-600 cursor-pointer shrink-0">`;
+                    });
+                    photosHtml += `</div>`;
+                }
+
+                list.innerHTML += `
+                    <div class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/70 space-y-3 shadow-sm">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <strong class="text-white text-base block">${escapeHtml(c.name)}</strong>
+                                <span class="text-xs text-slate-400 block">${escapeHtml(c.boiler || 'Kotel')} • ${escapeHtml(c.address || '')}</span>
+                                <span class="text-xs text-sky-400 font-semibold mt-0.5 block">Servis: ${formatDateCZ(s.date)} | Příští: ${formatDateCZ(s.nextDate)}</span>
+                            </div>
+                            <div class="flex gap-1.5">
+                                <button onclick="openProtocolDetail(${s.id})" title="Detail protokolu" class="px-2.5 py-1.5 bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 rounded-xl text-xs font-semibold flex items-center gap-1">
+                                    <i class="fa-solid fa-eye"></i> Detail
+                                </button>
+                                <button onclick="openServiceModal(${s.id})" title="Upravit" class="w-8 h-8 bg-slate-700 text-slate-300 hover:text-white rounded-xl flex items-center justify-center">
+                                    <i class="fa-solid fa-pen text-xs"></i>
+                                </button>
+                                <button onclick="deleteService(${s.id})" title="Smazat" class="w-8 h-8 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 rounded-xl flex items-center justify-center">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Naměřené hodnoty přehledně -->
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-900/60 p-2.5 rounded-xl text-center text-[11px] text-slate-300 border border-slate-700/40">
+                            <div><span class="text-slate-500 block text-[9px]">CO₂</span><strong>${s.co2 || '-'} %</strong></div>
+                            <div><span class="text-slate-500 block text-[9px]">CO</span><strong>${s.co || '-'} ppm</strong></div>
+                            <div><span class="text-slate-500 block text-[9px]">T. spalin</span><strong>${s.temp || '-'} °C</strong></div>
+                            <div><span class="text-slate-500 block text-[9px]">Tlak ÚT</span><strong>${s.pressure || '-'} bar</strong></div>
+                            <div><span class="text-slate-500 block text-[9px]">Ionizace</span><strong>${s.ion || '-'} µA</strong></div>
+                            <div><span class="text-slate-500 block text-[9px]">Účinnost</span><strong>${s.efficiency || '-'} %</strong></div>
+                        </div>
+
+                        <!-- Souhrn provedených prací -->
+                        <div onclick="openProtocolDetail(${s.id})" class="cursor-pointer bg-slate-900/40 p-2.5 rounded-xl border border-slate-700/50 space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-semibold text-emerald-400"><i class="fa-solid fa-check-double mr-1"></i>Provedené práce (${doneCount} položek)</span>
+                                <span class="text-[10px] text-sky-400">Zobrazit celý checklist →</span>
+                            </div>
+                            <p class="text-xs text-slate-300 line-clamp-2">${s.tasks && s.tasks.length ? s.tasks.map(t => escapeHtml(t)).join(' • ') : 'Žádné zaškrtnuté položky'}</p>
+                        </div>
+
+                        ${s.parts ? `<div class="text-xs text-amber-300 bg-amber-950/30 p-2 rounded-lg border border-amber-800/40"><strong>Vyměněné díly:</strong> ${escapeHtml(s.parts)}</div>` : ''}
+                        ${s.notes ? `<div class="text-xs text-slate-300 italic bg-slate-900/30 p-2 rounded-lg">"${escapeHtml(s.notes)}"</div>` : ''}
+                        ${photosHtml}
+
+                        <div class="flex flex-wrap justify-end gap-2 pt-1">
+                            <button onclick="exportToICS('${escapeHtml(c.name)}', '${s.nextDate}', '${escapeHtml(c.address || '')}')" class="text-xs bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 px-3 py-1.5 rounded-xl border border-sky-500/30 flex items-center gap-1.5 font-medium">
+                                <i class="fa-solid fa-calendar-plus"></i> Do Google Kalendáře (.ics)
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // DETAIL PROTOKOLU S PŘEHLEDEM CO BYLO A CO NEBYLO DĚLÁNO
+        function openProtocolDetail(serviceId) {
+            const s = services.find(item => item.id === serviceId);
+            if (!s) return;
+            const c = customers.find(item => item.id === s.customerId) || { name: 'Neznámý zákazník', address: '', phone: '', boiler: '', serial: '' };
+            const doneTasks = s.tasks || [];
+            const allKnownTasks = [...new Set([...checklistTasks, ...doneTasks, ...(s.uncheckedTasks || [])])];
+
+            let checklistHtml = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">`;
+            allKnownTasks.forEach(task => {
+                const isDone = doneTasks.includes(task);
+                checklistHtml += `
+                    <div class="p-2 rounded-lg border flex items-center gap-2 ${isDone ? 'bg-emerald-950/30 border-emerald-700/50 text-emerald-200' : 'bg-slate-900/40 border-slate-800 text-slate-500'}">
+                        <i class="fa-solid ${isDone ? 'fa-square-check text-emerald-400' : 'fa-square text-slate-600'} text-sm"></i>
+                        <span class="text-xs ${isDone ? 'font-medium' : 'line-through'}">${escapeHtml(task)}</span>
+                    </div>
+                `;
+            });
+            checklistHtml += `</div>`;
+
+            const content = document.getElementById('protocolDetailContent');
+            content.innerHTML = `
+                <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-700/70 flex justify-between items-start">
+                    <div>
+                        <h4 class="text-sm font-bold text-white">${escapeHtml(c.name)}</h4>
+                        <p class="text-slate-400">${escapeHtml(c.address || '')} • Tel: ${escapeHtml(c.phone || '-')}</p>
+                        <p class="text-sky-400 font-semibold mt-1">Kotel: ${escapeHtml(c.boiler || '-')} (S/N: ${escapeHtml(c.serial || '-')})</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-slate-400 block">Datum servisu: <strong class="text-white">${formatDateCZ(s.date)}</strong></span>
+                        <span class="text-xs text-amber-400 block">Příští servis: <strong>${formatDateCZ(s.nextDate)}</strong></span>
+                    </div>
+                </div>
+
+                <div>
+                    <h5 class="text-xs font-bold uppercase text-slate-400 mb-2">Naměřené hodnoty</h5>
+                    <div class="grid grid-cols-3 gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 text-center">
+                        <div><span class="text-[10px] text-slate-500 block">CO₂</span><strong>${s.co2 || '-'} %</strong></div>
+                        <div><span class="text-[10px] text-slate-500 block">CO</span><strong>${s.co || '-'} ppm</strong></div>
+                        <div><span class="text-[10px] text-slate-500 block">O₂</span><strong>${s.o2 || '-'} %</strong></div>
+                        <div><span class="text-[10px] text-slate-500 block">Tepl. spalin</span><strong>${s.temp || '-'} °C</strong></div>
+                        <div><span class="text-[10px] text-slate-500 block">Účinnost</span><strong>${s.efficiency || '-'} %</strong></div>
+                        <div><span class="text-[10px] text-slate-500 block">Tah komínu</span><strong>${s.draft || '-'} Pa</strong></div>
+                        <div><span class="text-[10px] text-slate-500 block">Tlak vody ÚT</span><strong>${s.pressure || '-'} bar</strong></div>
+                        <div><span class="text-[10px] text-slate-500 block">Expanzka</span><strong>${s.exp || '-'} bar</strong></div>
+                        <div><span class="text-[10px] text-slate-500 block">Ionizace</span><strong>${s.ion || '-'} µA</strong></div>
+                    </div>
+                </div>
+
+                <div>
+                    <h5 class="text-xs font-bold uppercase text-slate-400 mb-2">Kontrolní seznam prací (Zeleně = provedeno, Šedě = neprovedeno)</h5>
+                    ${checklistHtml}
+                </div>
+
+                ${s.parts ? `<div class="bg-amber-950/30 border border-amber-800/50 p-3 rounded-xl"><strong>Vyměněné díly:</strong> ${escapeHtml(s.parts)}</div>` : ''}
+                ${s.notes ? `<div class="bg-slate-900/60 border border-slate-700 p-3 rounded-xl"><strong>Poznámka:</strong> ${escapeHtml(s.notes)}</div>` : ''}
+
+                <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-700">
+                    <button onclick="closeProtocolDetailModal(); openServiceModal(${s.id});" class="flex-1 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-pen"></i> Upravit protokol
+                    </button>
+                    <button onclick="printProtocol(${s.id})" class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-semibold flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> Tisk / PDF
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('protocolDetailModal').classList.remove('hidden');
+        }
+
+        function closeProtocolDetailModal() {
+            document.getElementById('protocolDetailModal').classList.add('hidden');
+        }
+
+        function printProtocol(serviceId) {
+            const s = services.find(item => item.id === serviceId);
+            if (!s) return;
+            const c = customers.find(item => item.id === s.customerId) || {};
+            const tech = JSON.parse(localStorage.getItem('boiler_tech_profile') || '{}');
+            const doneTasks = s.tasks || [];
+            const allKnownTasks = [...new Set([...checklistTasks, ...doneTasks])];
+
+            const printArea = document.getElementById('printArea');
+            printArea.innerHTML = `
+                <div style="font-family: Arial, sans-serif; color: #111; max-width: 750px; margin: 0 auto;">
+                    <div style="display:flex; justify-content:space-between; border-bottom: 2px solid #222; padding-bottom: 10px; margin-bottom: 15px;">
+                        <div>
+                            <h1 style="font-size: 20px; margin: 0;">PROTOKOL O SERVISU PLYNOVÉHO KOTLE</h1>
+                            <p style="font-size: 12px; margin: 4px 0 0 0;">Datum provedení: <strong>${formatDateCZ(s.date)}</strong> | Doporučený příští servis: <strong>${formatDateCZ(s.nextDate)}</strong></p>
+                        </div>
+                        <div style="text-align: right; font-size: 12px;">
+                            <strong>${escapeHtml(tech.name || 'Servisní technik plynových kotlů')}</strong><br>
+                            ${escapeHtml(tech.phone || '')}
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; background:#f3f4f6; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 12px;">
+                        <div>
+                            <strong>Zákazník:</strong> ${escapeHtml(c.name || '')}<br>
+                            <strong>Adresa:</strong> ${escapeHtml(c.address || '')}<br>
+                            <strong>Telefon:</strong> ${escapeHtml(c.phone || '')}
+                        </div>
+                        <div>
+                            <strong>Spotřebič:</strong> ${escapeHtml(c.boiler || '')}<br>
+                            <strong>Sériové číslo:</strong> ${escapeHtml(c.serial || '-')}<br>
+                            <strong>Rok instalace:</strong> ${escapeHtml(c.year || '-')}
+                        </div>
+                    </div>
+
+                    <h3 style="font-size: 13px; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 4px;">Provedené servisní úkony a kontroly</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px; margin-bottom: 15px;">
+                        ${allKnownTasks.map(t => `<div>${doneTasks.includes(t) ? '☑' : '☐'} ${escapeHtml(t)}</div>`).join('')}
+                    </div>
+
+                    <h3 style="font-size: 13px; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 4px;">Naměřené hodnoty</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 15px;">
+                        <tr>
+                            <td style="border:1px solid #ccc; padding:5px;"><strong>CO₂:</strong> ${s.co2 || '-'} %</td>
+                            <td style="border:1px solid #ccc; padding:5px;"><strong>CO:</strong> ${s.co || '-'} ppm</td>
+                            <td style="border:1px solid #ccc; padding:5px;"><strong>O₂:</strong> ${s.o2 || '-'} %</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #ccc; padding:5px;"><strong>Teplota spalin:</strong> ${s.temp || '-'} °C</td>
+                            <td style="border:1px solid #ccc; padding:5px;"><strong>Účinnost:</strong> ${s.efficiency || '-'} %</td>
+                            <td style="border:1px solid #ccc; padding:5px;"><strong>Tah komínu:</strong> ${s.draft || '-'} Pa</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #ccc; padding:5px;"><strong>Tlak vody ÚT:</strong> ${s.pressure || '-'} bar</td>
+                            <td style="border:1px solid #ccc; padding:5px;"><strong>Expanzní nádoba:</strong> ${s.exp || '-'} bar</td>
+                            <td style="border:1px solid #ccc; padding:5px;"><strong>Ionizační proud:</strong> ${s.ion || '-'} µA</td>
+                        </tr>
+                    </table>
+
+                    <p style="font-size: 12px;"><strong>Vyměněné díly:</strong> ${escapeHtml(s.parts || 'Bez výměny dílů')}</p>
+                    <p style="font-size: 12px;"><strong>Závěr / Poznámka:</strong> ${escapeHtml(s.notes || 'Spotřebič je vyčištěn, seřízen a schopen bezpečného provozu.')}</p>
+                </div>
+            `;
+            printArea.classList.remove('hidden');
+            window.print();
+            printArea.classList.add('hidden');
+        }
+
+        function deleteService(id) {
+            askConfirm("Opravdu chcete smazat tento servisní protokol?", () => {
+                const tx = db.transaction(["services"], "readwrite");
+                tx.objectStore("services").delete(id);
+                tx.oncomplete = () => {
+                    showToast("Protokol byl smazán.", "info");
+                    loadAllData();
+                };
+            });
+        }
+
+        // KARTA 5: NASTAVENÍ A SPRÁVA PRACÍ V CHECKLISTU
+        function renderSettingsTasks() {
+            const list = document.getElementById('settingsTaskList');
+            if (!list) return;
+            list.innerHTML = '';
+
+            checklistTasks.forEach((task, index) => {
+                list.innerHTML += `
+                    <div class="bg-slate-900/70 border border-slate-700/70 px-3 py-2 rounded-xl flex justify-between items-center gap-2 text-xs">
+                        <span class="text-slate-200 font-medium">${index + 1}. ${escapeHtml(task)}</span>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button onclick="moveTask(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 disabled:opacity-30 flex items-center justify-center">
+                                <i class="fa-solid fa-arrow-up text-[10px]"></i>
+                            </button>
+                            <button onclick="moveTask(${index}, 1)" ${index === checklistTasks.length - 1 ? 'disabled' : ''} class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 disabled:opacity-30 flex items-center justify-center">
+                                <i class="fa-solid fa-arrow-down text-[10px]"></i>
+                            </button>
+                            <button onclick="removeTaskFromSettings(${index})" class="w-7 h-7 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 flex items-center justify-center">
+                                <i class="fa-solid fa-trash text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function addCustomTaskFromSettings() {
+            const input = document.getElementById('newSettingTaskInput');
+            const val = input.value.trim();
+            if (!val) {
+                showToast("Zadejte název práce / úkonu.", "error");
+                return;
+            }
+            if (checklistTasks.includes(val)) {
+                showToast("Tento úkon již v seznamu existuje.", "error");
+                return;
+            }
+            checklistTasks.push(val);
+            saveChecklistTasks();
+            input.value = '';
+            showToast("Nová práce byla přidána do seznamu.", "success");
+        }
+
+        function moveTask(index, direction) {
+            const target = index + direction;
+            if (target < 0 || target >= checklistTasks.length) return;
+            const temp = checklistTasks[index];
+            checklistTasks[index] = checklistTasks[target];
+            checklistTasks[target] = temp;
+            saveChecklistTasks();
+        }
+
+        function removeTaskFromSettings(index) {
+            askConfirm(`Odebrat práci "${checklistTasks[index]}" ze seznamu?`, () => {
+                checklistTasks.splice(index, 1);
+                saveChecklistTasks();
+                showToast("Položka byla odebrána.", "info");
+            });
+        }
+
+        function resetDefaultTasks() {
+            askConfirm("Obnovit výchozí seznam 23 servisních prací? Vaše vlastní přidané položky zůstanou zachovány na konci.", () => {
+                const combined = [...new Set([...DEFAULT_CHECKLIST_TASKS, ...checklistTasks])];
+                checklistTasks = combined;
+                saveChecklistTasks();
+                showToast("Výchozí seznam prací byl obnoven.", "success");
+            });
+        }
+
+        // EXPORT DO GOOGLE KALENDÁŘE (.ICS), EXCELU (.CSV) A ZÁLOHA (.JSON)
+        function exportToICS(custName, dateStr, address = '') {
+            if (!dateStr) {
+                showToast("Není vyplněno datum příštího servisu.", "error");
+                return;
+            }
+            const d = dateStr.replace(/-/g, '');
+            const ics = [
+                "BEGIN:VCALENDAR",
+                "VERSION:2.0",
+                "BEGIN:VEVENT",
+                `SUMMARY:Servis kotle - ${custName}`,
+                `DTSTART;VALUE=DATE:${d}`,
+                `DTEND;VALUE=DATE:${d}`,
+                `LOCATION:${address}`,
+                "DESCRIPTION:Pravidelný roční servis plynového kotle.",
+                "END:VEVENT",
+                "END:VCALENDAR"
+            ].join("\r\n");
+
+            const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `servis_${custName.replace(/\s+/g, '_')}.ics`;
+            a.click();
+            showToast("Soubor pro Kalendář (.ics) stažen.", "success");
+        }
+
+        function exportCSV() {
+            let csv = "\uFEFFZákazník;Telefon;Adresa;Kotel;Sériové číslo;Datum servisu;Příští servis;CO2 (%);CO (ppm);O2 (%);Teplota spalin (°C);Tlak ÚT (bar);Ionizace (uA);Účinnost (%);Provedené práce;Vyměněné díly;Poznámka\n";
+
+            services.forEach(s => {
+                const c = customers.find(item => item.id === s.customerId) || {};
+                const row = [
+                    c.name || '',
+                    c.phone || '',
+                    c.address || '',
+                    c.boiler || '',
+                    c.serial || '',
+                    s.date || '',
+                    s.nextDate || '',
+                    s.co2 || '',
+                    s.co || '',
+                    s.o2 || '',
+                    s.temp || '',
+                    s.pressure || '',
+                    s.ion || '',
+                    s.efficiency || '',
+                    (s.tasks || []).join(', '),
+                    s.parts || '',
+                    s.notes || ''
+                ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';');
+                csv += row + "\n";
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Servis_Kotlu_Export_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            showToast("Tabulka CSV pro Excel/Google Sheets stažena.", "success");
+        }
+
+        function exportJSON() {
+            const techProfile = JSON.parse(localStorage.getItem('boiler_tech_profile') || '{}');
+            const data = {
+                version: 2,
+                exportedAt: new Date().toISOString(),
+                customers,
+                services,
+                checklistTasks,
+                techProfile
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Zaloha_ServisKotlu_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            showToast("Záloha JSON stažena. Uložte si ji na Google Disk.", "success");
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const r = new FileReader();
+            r.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (data.checklistTasks && Array.isArray(data.checklistTasks)) {
+                        checklistTasks = data.checklistTasks;
+                        saveChecklistTasks();
+                    }
+                    if (data.techProfile) {
+                        localStorage.setItem('boiler_tech_profile', JSON.stringify(data.techProfile));
+                    }
+
+                    const tx = db.transaction(["customers", "services"], "readwrite");
+                    tx.objectStore("customers").clear();
+                    tx.objectStore("services").clear();
+                    if (data.customers) data.customers.forEach(c => tx.objectStore("customers").add(c));
+                    if (data.services) data.services.forEach(s => tx.objectStore("services").add(s));
+                    tx.oncomplete = () => {
+                        loadSettingsData();
+                        loadAllData();
+                        showToast("Záloha byla úspěšně obnovena!", "success");
+                    };
+                } catch (err) {
+                    showToast("Chyba při čtení souboru zálohy.", "error");
+                }
+            };
+            r.readAsText(file);
+        }
+
+        function formatDateCZ(dateStr) {
+            if (!dateStr) return '-';
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        }
+
+        function escapeHtml(str) {
+            return str ? String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])) : '';
+        }
+    </script>
+</body>
+</html>
