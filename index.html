@@ -467,6 +467,7 @@
                 <span class="text-xs uppercase font-bold text-emerald-400 block flex items-center gap-1.5">
                     <i class="fa-solid fa-gauge-high"></i> Naměřené hodnoty spalování a soustavy
                 </span>
+
                 <div class="grid grid-cols-3 sm:grid-cols-3 gap-2 text-xs">
                     <div>
                         <label class="text-[10px] text-slate-400 block mb-0.5">CO₂ (%)</label>
@@ -613,6 +614,7 @@
         let checklistTasks = [];
         let currentModalPhotos = [];
         let currentNotifFilter = 'all';
+        let currentTab = 'overview'; // Zapamatování aktuální záložky
 
         // Načtení seznamu prací a profilu technika z localStorage
         function loadSettingsData() {
@@ -651,8 +653,8 @@
             const box = document.getElementById('toastBox');
             const el = document.getElementById('toastMessage');
             const icon = type === 'success' ? '<i class="fa-solid fa-circle-check text-emerald-400"></i>' :
-                         type === 'error' ? '<i class="fa-solid fa-circle-exclamation text-rose-400"></i>' :
-                         '<i class="fa-solid fa-circle-info text-sky-400"></i>';
+                       type === 'error' ? '<i class="fa-solid fa-circle-exclamation text-rose-400"></i>' :
+                       '<i class="fa-solid fa-circle-info text-sky-400"></i>';
             el.innerHTML = `${icon} <span>${msg}</span>`;
             box.classList.remove('opacity-0', 'translate-y-[-10px]');
             box.classList.add('opacity-100', 'translate-y-0');
@@ -678,7 +680,7 @@
             document.getElementById('confirmModal').classList.add('hidden');
         }
 
-        // Inicializace IndexedDB (kompatibilní s předchozí verzí)
+        // Inicializace IndexedDB
         const request = indexedDB.open("BoilerServicePRO_DB", 1);
 
         request.onerror = (e) => console.error("Chyba IndexedDB:", e);
@@ -707,12 +709,16 @@
                     renderCustomers();
                     renderServices();
                     renderSettingsTasks();
+                    
+                    // Zůstaneme na aktuální záložce namísto skákání na začátek
+                    switchTab(currentTab);
                 };
             };
         }
 
         // Přepínání 5 záložek
         function switchTab(tab) {
+            currentTab = tab; // Uložení aktuální záložky
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(`tab-${tab}`).classList.remove('hidden');
 
@@ -867,7 +873,6 @@
             document.getElementById('badge-due30').textContent = countDue30;
             document.getElementById('badge-ok').textContent = countOk;
 
-            // Urgentní box na přehledu
             urgentItems.sort((a,b) => a.diffDays - b.diffDays);
             if (urgentItems.length === 0) {
                 urgentOverview.innerHTML = `<p class="text-xs text-emerald-400 py-1"><i class="fa-solid fa-circle-check mr-1"></i>Všechny servisy jsou v pořádku (žádný není po termínu ani do 30 dnů).</p>`;
@@ -1045,7 +1050,6 @@
             const container = document.getElementById('protocolChecklistContainer');
             container.innerHTML = '';
 
-            // Zajistíme, že pokud protokol obsahoval starší vlastní úkon, zobrazí se také
             const allTasksToRender = [...new Set([...checklistTasks, ...selectedTasks])];
 
             allTasksToRender.forEach((taskName, index) => {
@@ -1079,7 +1083,6 @@
             updateChecklistCounter();
         }
 
-        // Přidání nové práce přímo v modalu protokolu
         function addInlineTaskInModal() {
             const input = document.getElementById('inlineNewTaskInput');
             const val = input.value.trim();
@@ -1090,7 +1093,6 @@
                 saveChecklistTasks();
             }
 
-            // Zachováme aktuálně zaškrtnuté a přidáme novou jako zaškrtnutou
             const currentlyChecked = Array.from(document.querySelectorAll('.task-checkbox:checked')).map(cb => cb.value);
             if (!currentlyChecked.includes(val)) currentlyChecked.push(val);
 
@@ -1178,7 +1180,6 @@
             document.getElementById('serviceModal').classList.add('hidden');
         }
 
-        // Komprese fotek pomocí Canvasu pro úsporu místa v telefonu
         function handlePhotoPreview(event) {
             const files = Array.from(event.target.files);
             if (!files.length) return;
@@ -1335,7 +1336,6 @@
                             </div>
                         </div>
 
-                        <!-- Naměřené hodnoty přehledně -->
                         <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-900/60 p-2.5 rounded-xl text-center text-[11px] text-slate-300 border border-slate-700/40">
                             <div><span class="text-slate-500 block text-[9px]">CO₂</span><strong>${s.co2 || '-'} %</strong></div>
                             <div><span class="text-slate-500 block text-[9px]">CO</span><strong>${s.co || '-'} ppm</strong></div>
@@ -1345,7 +1345,6 @@
                             <div><span class="text-slate-500 block text-[9px]">Účinnost</span><strong>${s.efficiency || '-'} %</strong></div>
                         </div>
 
-                        <!-- Souhrn provedených prací -->
                         <div onclick="openProtocolDetail(${s.id})" class="cursor-pointer bg-slate-900/40 p-2.5 rounded-xl border border-slate-700/50 space-y-1">
                             <div class="flex justify-between items-center">
                                 <span class="text-xs font-semibold text-emerald-400"><i class="fa-solid fa-check-double mr-1"></i>Provedené práce (${doneCount} položek)</span>
@@ -1368,7 +1367,6 @@
             });
         }
 
-        // DETAIL PROTOKOLU S PŘEHLEDEM CO BYLO A CO NEBYLO DĚLÁNO
         function openProtocolDetail(serviceId) {
             const s = services.find(item => item.id === serviceId);
             if (!s) return;
@@ -1590,7 +1588,6 @@
             });
         }
 
-        // EXPORT DO GOOGLE KALENDÁŘE (.ICS), EXCELU (.CSV) A ZÁLOHA (.JSON)
         function exportToICS(custName, dateStr, address = '') {
             if (!dateStr) {
                 showToast("Není vyplněno datum příštího servisu.", "error");
